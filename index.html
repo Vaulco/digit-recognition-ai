@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digit Recognition</title>
+    <style>
+        html { 
+            background: #090b0c;
+            display: flex;
+            height: 100vh;
+            align-items: center;
+            justify-content: center;
+            font-family: "Poppins", sans-serif;
+            scroll-behavior: smooth;
+            overflow: hidden;
+        }
+
+        #canvas {
+            border-radius: 5px;
+            cursor: crosshair;
+            border: 1px solid #252627;
+            box-shadow: 0 10 100px #0d0e0d;
+        }
+
+        .buttons {
+            gap: 10px;
+            display: flex;
+        }
+
+        button {
+            width: 35px;
+            height: 35px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background-color: transparent;
+            border: 1px solid #151616;
+            color: #b1b2b2;
+        }
+
+        svg {
+            margin-top: 2.5px;
+            width: 18px;
+        }
+
+        #result, #errors {
+            padding-top: 5px;
+            color: #8a8f98;
+            position: absolute;
+            font-size: 17px;
+            text-shadow: 0 0 10px #221717;
+            z-index: 100;
+            height: 100px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="buttons">
+        <button id="backward">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        </button>
+        <button id="forward">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <button id="clear">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
+    </div>
+    <canvas id="canvas" width="280" height="280"></canvas>
+    <div id="result"></div>
+    <div id="errors"></div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const clearBtn = document.getElementById('clear');
+        const result = document.getElementById('result');
+        const errors = document.getElementById('errors');
+
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 20;
+        ctx.lineCap = 'round';
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            [lastX, lastY] = [x, y];
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            [lastX, lastY] = [e.clientX - rect.left, e.clientY - rect.top];
+        });
+
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+            predict();
+        });
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+
+        clearBtn.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            result.textContent = '';
+            errors.textContent = '';
+        });
+
+        async function predict() {
+            result.textContent = '';
+            errors.textContent = '';
+
+            try {
+                const response = await fetch('http://localhost:5000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: canvas.toDataURL()
+                    })
+                });
+
+                const data = await response.json();
+                result.textContent = `${data.prediction}`;
+            } catch (error) {
+                errors.textContent = 'Error: Server offline';
+                console.error('Errors:', error);
+            }
+        }
+    </script>
+</body>
+</html>
